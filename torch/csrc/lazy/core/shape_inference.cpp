@@ -1150,6 +1150,39 @@ std::vector<Shape> compute_shape_repeat(
   return {Shape(self.scalar_type(), target_size)};
 }
 
+std::vector<torch::lazy::Shape> compute_shape_repeat_interleave(
+    const at::Tensor & self, 
+    const at::Tensor & repeats, 
+    c10::optional<int64_t> dim, 
+    c10::optional<int64_t> output_size) {
+  std::vector<int64_t> target_size;
+  int64_t dim_val;
+  std::cout << "Torch shape inference" << std::endl;
+  if (!dim.has_value()) {
+    target_size = {self.numel()};
+    std::cout << "Number of elements in input " << self.numel() << std::endl;
+    dim_val = 0;
+  } else {
+    target_size.insert(target_size.end(), self.sizes().begin(), self.sizes().end());
+    dim_val = dim.value();
+  }
+  // dim size must be the same as size of input along dim
+  // TODO: Docs say that dim size should evenly divide, but functionally only running when it is equal
+  std::cout << "Repeat sizes " << repeats.sizes() << " " << repeats.dim() << " " << std::endl;
+  std::cout << "Repeat tensor " << repeats << std::endl;
+  TORCH_CHECK_EQ(repeats.dim(), target_size[dim_val]);
+  int64_t repeat_dim_size;
+  if (output_size.has_value())
+    repeat_dim_size = output_size.value();
+  else {
+    repeat_dim_size = 2;
+    // for (auto x = 0; x < repeats.sizes(); x++)
+    //   repeat_dim_size += repeats[x];
+  }
+  target_size[dim_val] = repeat_dim_size;
+  return {Shape(self.scalar_type(), target_size)};                                       
+}
+
 std::vector<Shape> compute_shape_narrow_copy_symint(
     const at::Tensor& self,
     int64_t dim,
